@@ -1,0 +1,159 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.GamerServices;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
+using NovaDll;
+using TagLib;
+
+namespace StreamPlayer
+{
+
+    public class Player : Microsoft.Xna.Framework.Game
+    {
+        GraphicsDeviceManager graphics;
+        SpriteBatch spriteBatch;
+
+        [DllImport("user32.dll")]
+        static extern short GetAsyncKeyState(System.Windows.Forms.Keys vKey);
+
+        private static String MUSIC_PATH = Path.Combine(Environment.CurrentDirectory, "Musics");
+
+        List<Song> songs = new List<Song>();
+        List<Texture2D> arts = new List<Texture2D>();
+        int index = 0;
+
+        public Player()
+        {
+            graphics = new GraphicsDeviceManager(this);
+            Content.RootDirectory = "Content";
+            Nova_Functions.SetGraphics(graphics);
+            Nova_Functions.SetGame(this);
+            Nova_Functions.ConfigureGraphics(true, true, false, SurfaceFormat.Color, DepthFormat.None);            
+        }
+
+        protected override void Initialize()
+        {
+            base.Initialize();
+           
+        }
+
+        protected override void LoadContent()
+        {
+            spriteBatch = new SpriteBatch(GraphicsDevice);
+            Nova_Importer.SetContent(Content);
+            int resourceNumber = 0;
+            foreach(FileInfo file in new DirectoryInfo(MUSIC_PATH).GetFiles("*.mp3", SearchOption.AllDirectories))
+            {
+                //
+
+
+
+                String destFilePath = Path.Combine(Environment.CurrentDirectory, "Content", "Musics");
+                FileInfo fileName = file;
+                String resourceName = "MUSIC" + resourceNumber.ToString();
+
+                if (!new DirectoryInfo(destFilePath).GetFiles().First(k => Nova_Functions.GetFileName(k).Equals(Nova_Functions.GetFileName(fileName))).Exists)
+                {
+                    Nova_Importer.LoadExternResource(fileName.FullName, false, resourceName);
+                    foreach(FileInfo convertedFile in new DirectoryInfo(Path.Combine(Environment.CurrentDirectory, "Content", "Musics", "Externs")).GetFiles())
+                    {
+                        System.IO.File.Copy(convertedFile.FullName, Path.Combine(destFilePath, convertedFile.Name), true);
+                    }
+                }
+
+
+
+                //
+
+                if (!System.IO.File.Exists(Path.Combine(Environment.CurrentDirectory, "Content", "Musics", Nova_Functions.GetFileName(file) + ".wma")))
+                {
+                    Nova_Importer.LoadExternMusicResource(file.FullName, false, "MUSIC" + resourceNumber.ToString());
+                    System.IO.File.Copy(Path.Combine(Environment.CurrentDirectory, "Content", "Externs", Nova_Functions.GetFileName(file) + ".wma"), Path.Combine(Environment.CurrentDirectory, "Content", "Musics", Nova_Functions.GetFileName(file) + ".wma"));
+                    System.IO.File.Copy(Path.Combine(Environment.CurrentDirectory, "Content", "Externs", Nova_Functions.GetFileName(file) + ".xnb"), Path.Combine(Environment.CurrentDirectory, "Content", "Musics", Nova_Functions.GetFileName(file) + ".xnb"));
+                }
+                Nova_Importer.LoadResource("MUSIC" + resourceNumber.ToString(), "Musics\\" + Nova_Functions.GetFileName(file));
+                songs.Add((Song)Nova_DataBase.GetResource("MUSIC" + resourceNumber.ToString()));
+                
+
+                var fileB = TagLib.File.Create(file.FullName);
+                var bin = (byte[])(fileB.Tag.Pictures[0].Data.Data);
+                Image.FromStream(new MemoryStream(bin)).Save(Path.Combine(Environment.CurrentDirectory, "Content", "Musics", Nova_Functions.GetFileName(file) + ".jpg"), System.Drawing.Imaging.ImageFormat.Jpeg);
+
+                Nova_Importer.LoadResource("IMAGE", Path.Combine(Environment.CurrentDirectory, "Content", "Musics", Nova_Functions.GetFileName(file) + ".jpg"));
+
+
+
+
+                resourceNumber++;
+            }
+            
+        }
+
+        protected override void UnloadContent()
+        {
+            Nova_DataBase.CleanResources();
+        }
+
+        public void Controls()
+        {
+            if (GetAsyncKeyState(System.Windows.Forms.Keys.MediaPlayPause) != 0)
+            {
+                if (MediaPlayer.State == MediaState.Playing)
+                {
+                    MediaPlayer.Pause();
+                }
+                else if (MediaPlayer.State == MediaState.Paused || MediaPlayer.State == MediaState.Stopped)
+                {
+                    MediaPlayer.Resume();
+                }
+            }
+            if (GetAsyncKeyState(System.Windows.Forms.Keys.MediaNextTrack) != 0)
+            {
+                Next();
+            }
+            if (GetAsyncKeyState(System.Windows.Forms.Keys.MediaPreviousTrack) != 0)
+            {
+                Prev();
+            }
+        }
+
+        public void Next()
+        {
+            if (index < songs.Count -1)
+            {
+                index++;
+            }
+            MediaPlayer.Play(songs[index]);
+        }
+
+        public void Prev()
+        {
+            if (index > 0)
+            {
+                index--;
+            }
+            MediaPlayer.Play(songs[index]);
+        }
+
+        protected override void Update(GameTime gameTime)
+        {
+            base.Update(gameTime);
+            Controls();
+        }
+
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Microsoft.Xna.Framework.Color.CornflowerBlue);
+            base.Draw(gameTime);
+        }
+    }
+}

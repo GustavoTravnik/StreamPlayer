@@ -10,7 +10,7 @@ namespace StreamPlayer
         /// </summary>
         static void Main(string[] args)
         {
-            using (Game1 game = new Game1())
+            using (Player game = new Player())
             {
                 game.Run();
             }
